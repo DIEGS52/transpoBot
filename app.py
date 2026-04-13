@@ -246,7 +246,7 @@ def get_stats():
             FROM trajets
             WHERE statut = 'termine'
               AND date_heure_depart >= DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 3 MONTH), '%Y-%m-01')
-            GROUP BY DATE_FORMAT(date_heure_depart, '%Y-%m')
+            GROUP BY DATE_FORMAT(date_heure_depart, '%Y-%m'), DATE_FORMAT(date_heure_depart, '%b %Y')
             ORDER BY mois ASC
         """))
 
