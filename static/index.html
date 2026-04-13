@@ -825,12 +825,26 @@ tbody tr:hover td { background:var(--surface2); }
         </button>
       </div>
       <div class="card">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="tSearch" placeholder="Rechercher…" oninput="filterT()"/>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div class="pill active" data-t="tous"     onclick="setPillT(this,'tous')">Tous</div>
+            <div class="pill" data-t="planifie"        onclick="setPillT(this,'planifie')">Planifié</div>
+            <div class="pill" data-t="en_cours"        onclick="setPillT(this,'en_cours')">En cours</div>
+            <div class="pill" data-t="termine"         onclick="setPillT(this,'termine')">Terminé</div>
+            <div class="pill" data-t="annule"          onclick="setPillT(this,'annule')">Annulé</div>
+          </div>
+        </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Ligne</th><th>Chauffeur</th><th>Véhicule</th><th>Départ</th><th>Arrivée</th><th>Passagers</th><th>Recette</th><th>Statut</th></tr></thead>
             <tbody id="tBody"><tr><td colspan="8"><div class="skel skel-row"></div><div class="skel skel-row"></div></td></tr></tbody>
           </table>
         </div>
+        <div id="tCount" class="text-muted" style="padding:8px 4px;font-size:.67rem"></div>
       </div>
     </div>
   </section>
@@ -1598,23 +1612,32 @@ async function delC(id, nom){
 /* ══════════════════════════════════════════════
    TRAJETS
 ══════════════════════════════════════════════ */
+let allT=[], tFil='tous';
 async function loadTrajets(){
-  try{
-    const d = await api('/api/trajets/recent');
-    const tb = document.getElementById('tBody');
-    if(!d.length){ tb.innerHTML='<tr><td colspan="8"><div class="empty"><div class="ei">📋</div><p>Aucun trajet</p></div></td></tr>'; return; }
-    tb.innerHTML = d.map(t=>`<tr>
-      <td><span style="font-family:var(--mono);font-weight:700">${t.ligne_code||'—'}</span> <span class="text-muted">${t.ligne_nom||''}</span></td>
-      <td style="font-weight:600">${t.chauffeur_prenom||''} ${t.chauffeur_nom||''}</td>
-      <td style="font-family:var(--mono)">${t.immatriculation||'—'}</td>
-      <td class="text-muted">${fmtDT(t.date_heure_depart)}</td>
-      <td class="text-muted">${t.date_heure_arrivee?fmtDT(t.date_heure_arrivee):'—'}</td>
-      <td>${t.nb_passagers??'—'}</td>
-      <td style="font-family:var(--mono)">${t.recette?fmtF(t.recette):'—'}</td>
-      <td>${statBadge(t.statut)}</td>
-    </tr>`).join('');
-  }catch(e){ toast('Erreur : '+e.message,'error'); }
+  try{ allT=await api('/api/trajets/recent'); renderT(); }
+  catch(e){ toast('Erreur : '+e.message,'error'); }
 }
+function renderT(){
+  const q=(document.getElementById('tSearch')||{value:''}).value.toLowerCase();
+  let d=allT;
+  if(tFil!=='tous') d=d.filter(t=>t.statut===tFil);
+  if(q) d=d.filter(t=>(t.ligne_code+' '+(t.chauffeur_prenom||'')+' '+(t.chauffeur_nom||'')+' '+(t.immatriculation||'')).toLowerCase().includes(q));
+  document.getElementById('tCount').textContent=`${d.length} trajet${d.length>1?'s':''}`;
+  const tb=document.getElementById('tBody');
+  if(!d.length){ tb.innerHTML='<tr><td colspan="8"><div class="empty"><div class="ei">📋</div><p>Aucun résultat</p></div></td></tr>'; return; }
+  tb.innerHTML=d.map(t=>`<tr>
+    <td><span style="font-family:var(--mono);font-weight:700">${t.ligne_code||'—'}</span> <span class="text-muted">${t.ligne_nom||''}</span></td>
+    <td style="font-weight:600">${t.chauffeur_prenom||''} ${t.chauffeur_nom||''}</td>
+    <td style="font-family:var(--mono)">${t.immatriculation||'—'}</td>
+    <td class="text-muted">${fmtDT(t.date_heure_depart)}</td>
+    <td class="text-muted">${t.date_heure_arrivee?fmtDT(t.date_heure_arrivee):'—'}</td>
+    <td>${t.nb_passagers??'—'}</td>
+    <td style="font-family:var(--mono)">${t.recette?fmtF(t.recette):'—'}</td>
+    <td>${statBadge(t.statut)}</td>
+  </tr>`).join('');
+}
+function filterT(){ renderT(); }
+function setPillT(el,v){ document.querySelectorAll('[data-t]').forEach(p=>p.classList.remove('active')); el.classList.add('active'); tFil=v; renderT(); }
 
 async function populateSelects(){
   try{
