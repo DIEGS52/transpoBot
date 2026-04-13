@@ -55,7 +55,8 @@ RÈGLES STRICTES :
 4. Si la question ne peut pas être répondue avec SQL : {"sql":null,"explication":"..."}
 5. Limite toujours les résultats avec LIMIT 50 maximum
 6. Les montants sont en FCFA (Francs CFA)
-7. IMPORTANT — syntaxe MySQL uniquement : utilise DATE_FORMAT() et non DATE_TRUNC(), utilise YEAR()/MONTH() et non EXTRACT(EPOCH), utilise IFNULL() et non COALESCE si besoin, utilise NOW() et non CURRENT_TIMESTAMP pour la date courante. N'utilise jamais de fonctions PostgreSQL."""
+7. IMPORTANT — syntaxe MySQL uniquement : utilise DATE_FORMAT() et non DATE_TRUNC(), utilise YEAR()/MONTH() et non EXTRACT(EPOCH), utilise IFNULL() et non COALESCE si besoin, utilise NOW() et non CURRENT_TIMESTAMP pour la date courante. N'utilise jamais de fonctions PostgreSQL.
+8. Si la question porte sur une période récente ("ce mois", "aujourd'hui", "cette semaine") et que les données disponibles couvrent janvier–mars 2026, mentionne-le dans l'explication si aucun résultat n'est probable."""
 
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
@@ -526,6 +527,8 @@ def chat(req: ChatRequest):
             try:
                 rows = execute_query(sql)
                 data = serialize(rows)
+                if not data:
+                    explication = f"{explication} Aucun résultat trouvé pour cette période ou ce critère.".strip()
                 return {
                     "reponse":     explication,
                     "sql":         sql,
