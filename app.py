@@ -6,6 +6,7 @@ Projet GLSi L3 — ESP/UCAD
 import os
 import re
 import json
+import urllib.parse
 from openai import OpenAI
 from decimal import Decimal
 from datetime import date, datetime, timedelta
@@ -58,6 +59,18 @@ RÈGLES STRICTES :
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
 def get_connection():
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        p = urllib.parse.urlparse(database_url)
+        return mysql.connector.connect(
+            host=p.hostname,
+            port=p.port or 3306,
+            user=p.username,
+            password=p.password,
+            database=p.path.lstrip("/"),
+            charset="utf8mb4",
+            use_pure=True,
+        )
     return mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=int(os.getenv("DB_PORT", 3306)),
