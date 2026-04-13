@@ -548,7 +548,38 @@ tbody tr:hover td { background:var(--surface2); }
   .charts-grid { grid-template-columns:1fr; }
 }
 @media (max-width:640px) {
+  header { padding:0 14px; height:56px; }
   .header-center { display:none; }
+  .logo-title { font-size:17px; }
+  .logo-sub, .group-tag, .tb-clock { display:none; }
+  .logo-shape { width:34px; height:34px; font-size:18px; }
+
+  /* Barre de nav mobile en bas */
+  .mobile-nav {
+    display:flex !important;
+    position:fixed; bottom:0; left:0; right:0; z-index:200;
+    background:var(--sidebar);
+    border-top:3px solid var(--teranga);
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none; gap:0;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .mobile-nav::-webkit-scrollbar { display:none; }
+  .mobile-nav .nav-btn {
+    flex:0 0 auto; border-radius:0; border:none;
+    padding:10px 14px; font-size:11px;
+    border-top:3px solid transparent; margin-top:-3px;
+  }
+  .mobile-nav .nav-btn.active {
+    background:none; color:var(--teranga);
+    border-top-color:var(--teranga);
+  }
+  main { padding-bottom:58px; }
+  .kpi-grid { grid-template-columns:repeat(2,1fr); }
+  .charts-grid { grid-template-columns:1fr; }
+  #section-dashboard.active { grid-template-columns:1fr; }
+  .dash-sidebar { display:none; }
+  .modal { width:95vw; }
 }
 </style>
 </head>
@@ -1782,5 +1813,15 @@ document.getElementById('btnAddChauf')?.addEventListener('click', resetCModal);
 loadChatHistory();
 loadDashboard();
 </script>
+
+<!-- ═══ NAV MOBILE (bas d'écran) ═══ -->
+<nav class="mobile-nav" style="display:none">
+  <button class="nav-btn active" onclick="showSection('dashboard')" data-section="dashboard">🏠 Tableau</button>
+  <button class="nav-btn" onclick="showSection('vehicules')"  data-section="vehicules">🚌 Véhicules</button>
+  <button class="nav-btn" onclick="showSection('chauffeurs')" data-section="chauffeurs">👤 Chauffeurs</button>
+  <button class="nav-btn" onclick="showSection('trajets')"   data-section="trajets">🗺️ Trajets</button>
+  <button class="nav-btn" onclick="showSection('incidents')" data-section="incidents">⚠️ Incidents</button>
+  <button class="nav-btn" onclick="showSection('chat')"      data-section="chat">🤖 IA</button>
+</nav>
 </body>
 </html>
