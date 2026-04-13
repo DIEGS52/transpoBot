@@ -178,6 +178,34 @@ class ChauffeurCreate(BaseModel):
     date_embauche: Optional[str] = None
 
 
+class ChauffeurUpdate(BaseModel):
+    nom: Optional[str] = None
+    prenom: Optional[str] = None
+    telephone: Optional[str] = None
+    categorie_permis: Optional[str] = None
+    disponibilite: Optional[bool] = None
+    vehicule_id: Optional[int] = None
+    date_embauche: Optional[str] = None
+
+
+class TrajetCreate(BaseModel):
+    ligne_id: int
+    chauffeur_id: int
+    vehicule_id: int
+    date_heure_depart: str
+    statut: Optional[str] = "planifie"
+    nb_passagers: Optional[int] = 0
+    recette: Optional[float] = 0
+
+
+class IncidentCreate(BaseModel):
+    trajet_id: int
+    type: str
+    description: Optional[str] = None
+    gravite: Optional[str] = "faible"
+    date_incident: str
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -220,15 +248,43 @@ def get_stats():
             "SELECT COUNT(*) AS n FROM incidents WHERE resolu = FALSE"
         )[0]["n"]
 
+        top_chauffeurs = serialize(execute_query("""
+            SELECT c.nom, c.prenom,
+                   COALESCE(SUM(t.recette), 0) AS total_recette,
+                   COUNT(t.id) AS nb_trajets
+            FROM chauffeurs c
+            LEFT JOIN trajets t ON c.id = t.chauffeur_id AND t.statut = 'termine'
+            GROUP BY c.id, c.nom, c.prenom
+            ORDER BY total_recette DESC
+            LIMIT 3
+        """))
+
+        recette_mois_courant = execute_query("""
+            SELECT COALESCE(SUM(recette), 0) AS total
+            FROM trajets
+            WHERE statut = 'termine'
+              AND DATE_FORMAT(date_heure_depart, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+        """)[0]["total"]
+
+        recette_mois_precedent = execute_query("""
+            SELECT COALESCE(SUM(recette), 0) AS total
+            FROM trajets
+            WHERE statut = 'termine'
+              AND DATE_FORMAT(date_heure_depart, '%Y-%m') = DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 1 MONTH), '%Y-%m')
+        """)[0]["total"]
+
         return {
             "revenus_mois": revenus_mois,
             "statuts": statuts,
+            "top_chauffeurs": top_chauffeurs,
             "kpi": {
-                "total_vehicules":       kpi_total_vehicules,
-                "total_chauffeurs":      kpi_total_chauffeurs,
-                "total_trajets":         kpi_total_trajets,
-                "recette_totale":        float(kpi_recette) if kpi_recette else 0,
-                "incidents_non_resolus": kpi_incidents_non_resolus,
+                "total_vehicules":        kpi_total_vehicules,
+                "total_chauffeurs":       kpi_total_chauffeurs,
+                "total_trajets":          kpi_total_trajets,
+                "recette_totale":         float(kpi_recette) if kpi_recette else 0,
+                "incidents_non_resolus":  kpi_incidents_non_resolus,
+                "recette_mois_courant":   float(recette_mois_courant) if recette_mois_courant else 0,
+                "recette_mois_precedent": float(recette_mois_precedent) if recette_mois_precedent else 0,
             },
         }
     except Exception as e:
@@ -319,6 +375,47 @@ def create_chauffeur(c: ChauffeurCreate):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.put("/api/chauffeurs/{cid}")
+def update_chauffeur(cid: int, c: ChauffeurUpdate):
+    try:
+        fields = {k: val for k, val in c.model_dump().items() if val is not None}
+        if not fields:
+            raise HTTPException(status_code=400, detail="Aucun champ à mettre à jour")
+        set_clause = ", ".join(f"{k} = %s" for k in fields)
+        execute_write(f"UPDATE chauffeurs SET {set_clause} WHERE id = %s", [*fields.values(), cid])
+        rows = execute_query("SELECT * FROM chauffeurs WHERE id = %s", (cid,))
+        if not rows:
+            raise HTTPException(status_code=404, detail="Chauffeur non trouvé")
+        return serialize(rows)[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/chauffeurs/{cid}")
+def delete_chauffeur(cid: int):
+    try:
+        if not execute_query("SELECT id FROM chauffeurs WHERE id = %s", (cid,)):
+            raise HTTPException(status_code=404, detail="Chauffeur non trouvé")
+        execute_write("DELETE FROM chauffeurs WHERE id = %s", (cid,))
+        return {"message": "Chauffeur supprimé"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Lignes ───────────────────────────────────────────────────────────────────
+
+@app.get("/api/lignes")
+def list_lignes():
+    try:
+        return serialize(execute_query("SELECT * FROM lignes ORDER BY code"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── Trajets ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/trajets/recent")
@@ -340,6 +437,21 @@ def recent_trajets():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/trajets", status_code=201)
+def create_trajet(t: TrajetCreate):
+    try:
+        lid = execute_write(
+            """INSERT INTO trajets (ligne_id, chauffeur_id, vehicule_id, date_heure_depart,
+                                    statut, nb_passagers, recette)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (t.ligne_id, t.chauffeur_id, t.vehicule_id, t.date_heure_depart,
+             t.statut, t.nb_passagers, t.recette),
+        )
+        return serialize(execute_query("SELECT * FROM trajets WHERE id = %s", (lid,)))[0]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ── Incidents ────────────────────────────────────────────────────────────────
 
 @app.get("/api/incidents")
@@ -356,6 +468,19 @@ def list_incidents():
         """))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/incidents", status_code=201)
+def create_incident(i: IncidentCreate):
+    try:
+        lid = execute_write(
+            """INSERT INTO incidents (trajet_id, type, description, gravite, date_incident)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (i.trajet_id, i.type, i.description, i.gravite, i.date_incident),
+        )
+        return serialize(execute_query("SELECT * FROM incidents WHERE id = %s", (lid,)))[0]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.patch("/api/incidents/{iid}/resoudre")
