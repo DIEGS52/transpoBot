@@ -54,7 +54,8 @@ RÈGLES STRICTES :
 3. Le champ "explication" doit être une phrase courte et naturelle qui répond directement à la question (ex: "Il y a 1 véhicule en maintenance : le bus DK-9012-EF."). Pas de description technique de la requête.
 4. Si la question ne peut pas être répondue avec SQL : {"sql":null,"explication":"..."}
 5. Limite toujours les résultats avec LIMIT 50 maximum
-6. Les montants sont en FCFA (Francs CFA)"""
+6. Les montants sont en FCFA (Francs CFA)
+7. IMPORTANT — syntaxe MySQL uniquement : utilise DATE_FORMAT() et non DATE_TRUNC(), utilise YEAR()/MONTH() et non EXTRACT(EPOCH), utilise IFNULL() et non COALESCE si besoin, utilise NOW() et non CURRENT_TIMESTAMP pour la date courante. N'utilise jamais de fonctions PostgreSQL."""
 
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
