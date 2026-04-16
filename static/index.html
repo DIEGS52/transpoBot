@@ -1164,7 +1164,15 @@ function showSection(n){
   if(n === 'trajets')  { loadTrajets(); populateSelects(); }
   if(n === 'incidents')  loadIncidents();
   if(n === 'chat')      { document.getElementById('chatInput').focus(); }
+  location.hash = n;
 }
+
+/* Lecture du hash au chargement */
+(function(){
+  const h = location.hash.replace('#','');
+  const valid = ['dashboard','vehicules','chauffeurs','trajets','incidents','chat'];
+  if(valid.includes(h)) showSection(h);
+})();
 
 /* Ctrl+K → ouvre le chat */
 document.addEventListener('keydown', e => {
